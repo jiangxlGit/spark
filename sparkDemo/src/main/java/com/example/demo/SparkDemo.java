@@ -10,6 +10,7 @@ import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import scala.Tuple2;
+import scala.util.parsing.combinator.testing.Str;
 
 import java.io.Serializable;
 import java.util.*;
@@ -83,6 +84,9 @@ public class SparkDemo implements Serializable {
          */
         // 第4.1步：讲每一行的字符串拆分成单个的单词
         JavaRDD<String> words = lines.flatMap(s -> Arrays.asList(s.split("^A-Za-z0-9_|\\s+")));
+
+        Map<String, Long> wordMap = words.countByValue();
+        System.out.println("wordMap:"+wordMap);
 
         // 相同只保留一个元素
 //        words = words.distinct();
@@ -158,11 +162,37 @@ public class SparkDemo implements Serializable {
                 (x, t) -> {x.total += t; x.num += 1; return x;},
                 (y, z) -> {y.total += z.total; y.num += z.num; return y;});
         System.out.println(result.avg());
-        numsInt.foreach(i -> i=i*i);
+        System.out.println(numsInt.collect());
         List<Integer> list = numsInt.takeSample(false,2);
         System.out.println(list);
     }
 
+
+    // 键值对RDD
+    @Test
+    public void pairRDD() {
+
+        // 创建方式1
+        JavaPairRDD<String,Integer> pair = sc.parallelizePairs(Arrays.asList(new Tuple2<String,Integer>("jiang",520), new Tuple2<>("ding", 1314)));
+        System.out.println(pair.collect());
+
+        // 创建方式2
+        JavaRDD<String> lines = sc.textFile("d:\\spark\\spark\\pair.txt");
+        // 把普通的rdd转化成pair rdd
+        JavaPairRDD<String,String> pairRDD = lines.mapToPair((s) -> new Tuple2<String, String>(s.split("\\s+")[0], s));
+        System.out.println(pairRDD.collect());
+
+        /*
+            pair RDD 转化操作
+         */
+        // 合并具有相同键的值
+        JavaPairRDD<String,String> pairRDD1 = pairRDD.reduceByKey((s,t)->s+"|"+t);
+        System.out.println(pairRDD1.collect());
+
+        // 对具有相同键进行分组
+        JavaPairRDD<String,Iterable<String>> pairRDD2 = pairRDD.groupByKey();
+        System.out.println(pairRDD2.collect());
+    }
 
 
 }
